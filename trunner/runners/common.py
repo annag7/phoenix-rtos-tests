@@ -219,9 +219,15 @@ class Phoenixd:
 
 
 class PloError(Exception):
-    def __init__(self, message, expected):
+    def __init__(self, message, expected, cmd):
         msg = Color.colorify("PLO ERROR:", Color.BOLD)
-        msg += str(message) + '\n'
+        if message == '':
+            msg += '\nNo output detected, probably plo got stuck after passing command\n'
+        msg += str(message)
+        msg += Color.colorify("CMD PASSED:\n", Color.BOLD)
+        msg += str(cmd) + '\n'
+        if message == '':
+            msg += ''
         if expected:
             msg += Color.colorify("EXPECTED:\n", Color.BOLD)
             msg += str(expected) + '\n'
@@ -288,28 +294,23 @@ class PloTalker:
     def wait_prompt(self, timeout=8):
         self.plo.expect_exact("(plo)% ", timeout=timeout)
 
-    def expect_prompt(self, timeout=8):
-        idx = self.plo.expect([r"\(plo\)% ", r"(.*?)\n"], timeout=timeout)
-        if idx == 1:
-            # Something else than prompt was printed, raise error
-            line = self.plo.match.group(0)
-            raise PloError(line, expected="(plo)% ")
-
-    def cmd(self, cmd, timeout=8):
+    def assert_cmd(self, cmd, timeout=8):
         self.plo.send(cmd + '\r\n')
         # Wait for an eoched command
         self.plo.expect_exact(cmd)
-        # There might be some ASCII escape characters, we wait only for a new line
-        self.plo.expect_exact('\n', timeout=timeout)
+        try:
+            self.plo.expect_exact('(plo)%', timeout=timeout)
+            if ("\x1b[31m" in self.plo.before):
+                raise PloError(self.plo.before, expected="(plo)% ", cmd=cmd)
+        except pexpect.TIMEOUT:
+            raise PloError(self.plo.before, expected="(plo)% ")
 
     def app(self, device, file, imap, dmap, exec=False):
         exec = '-x' if exec else ''
-        self.cmd(f'app {device} {exec} {file} {imap} {dmap}', timeout=30)
-        self.expect_prompt()
+        self.assert_cmd(f'app {device} {exec} {file} {imap} {dmap}', timeout=30)
 
     def copy(self, src, src_obj, dst, dst_obj, src_size='', dst_size=''):
-        self.cmd(f'copy {src} {src_obj} {src_size} {dst} {dst_obj} {dst_size}', timeout=60)
-        self.expect_prompt()
+        self.assert_cmd(f'copy {src} {src_obj} {src_size} {dst} {dst_obj} {dst_size}', timeout=60)
 
     def copy_file2mem(self, src, file, dst='flash1', off=0, size=0):
         self.copy(
