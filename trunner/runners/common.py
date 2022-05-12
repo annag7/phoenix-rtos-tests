@@ -254,14 +254,11 @@ class PloTalker:
         obj.plo = pexpect_fd
         return obj
 
-    def send_empty(self):
-        self.plo.send('\r\n')
-
     def interrupt_counting(self, catch_statement):
         """ Interrupts timer counting to enter plo """
         if catch_statement:
             self.plo.expect_exact('Waiting for input', timeout=3)
-        self.send_empty()
+        self.plo.send('\r\n')
 
     def open(self):
         try:
@@ -291,8 +288,13 @@ class PloTalker:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
-    def wait_prompt(self, timeout=8):
-        self.plo.expect_exact("(plo)% ", timeout=timeout)
+    def wait_prompt(self, timeout=4):
+        idx = self.plo.expect_exact(["(plo)% ", pexpect.TIMEOUT], timeout=timeout)
+        # especially on Zyng7000Zedboard target after restart we have some gibberish output on uart
+        # Prompt may be not visible then and second newline may be needed
+        if idx == 1:
+            self.plo.send('\r\n')
+            idx = self.plo.expect_exact("(plo)% ", timeout=timeout)
 
     def assert_cmd(self, cmd, timeout=8):
         self.plo.send(cmd + '\r\n')
