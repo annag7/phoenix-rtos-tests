@@ -2,6 +2,7 @@
 
 #include <unity_fixture.h>
 
+#define UNITY_INCLUDE_DOUBLE
 #define UNITY_DOUBLE_PRECISION 10e-12f
 
 TEST_GROUP(test_tan);
