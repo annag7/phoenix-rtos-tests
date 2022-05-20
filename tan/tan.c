@@ -2,8 +2,9 @@
 
 #include <unity_fixture.h>
 
+#define UNITY_EXCLUDE_FLOAT
 #define UNITY_INCLUDE_DOUBLE
-#define UNITY_DOUBLE_PRECISION 10e-12f
+#define UNITY_DOUBLE_PRECISION 10e-9
 
 TEST_GROUP(test_tan);
 
